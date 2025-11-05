@@ -26,27 +26,27 @@
 <body>
   <div class="wrap">
     <div class="card">
-      <h2>Control de Ronda</h2>
+      <h2>Round Control</h2>
       <div class="row">
-        <button id="open" class="green">Abrir buzzer</button>
-        <button id="close" class="gray">Cerrar buzzer</button>
+        <button id="open" class="green">Open Buzzer</button>
+        <button id="close" class="gray">Close Buzzer</button>
       </div>
-      <p class="muted">Estado: <span id="st">—</span></p>
-      <p><strong>Ganador:</strong> <span id="winner">—</span></p>
+      <p class="muted">Status: <span id="st">—</span></p>
+      <p><strong>Winner:</strong> <span id="winner">—</span></p>
 
       <div class="row">
         <input id="points" type="number" value="10" />
-        <button id="award" class="blue">+ Puntaje al ganador</button>
-        <button id="penalize" class="yellow">- Penalizar ganador</button>
+        <button id="award" class="blue">+ Add Points to Winner</button>
+        <button id="penalize" class="yellow">- Deduct Points from Winner</button>
       </div>
 
       <div class="row" style="margin-top:10px">
-        <button id="resetScores" class="red">Reset marcador</button>
+        <button id="resetScores" class="red">Reset Scoreboard</button>
       </div>
     </div>
 
     <div class="card">
-      <h2>Jugadores</h2>
+      <h2>Players</h2>
       <ul id="players" class="list"></ul>
     </div>
   </div>
@@ -74,13 +74,13 @@
           <div><strong>${p.nick}</strong> <span class="muted">(${p.id.slice(0,6)})</span></div>
           <div>
             <span style="margin-right:10px">Score: ${p.score}</span>
-            <button data-id="${p.id}" class="kick red">Expulsar</button>
+            <button data-id="${p.id}" class="kick red">Kick</button>
           </div>
         `;
         playersEl.appendChild(li);
       });
 
-      // Bind expulsar
+      // Bind "kick" action
       document.querySelectorAll('.kick').forEach(btn => {
         btn.onclick = () => {
           ioClient.emit('host:kick', btn.dataset.id);
@@ -88,14 +88,15 @@
       });
     }
 
-    // Host no necesita “join” como jugador; sólo controla
+    // Host does not need to join like a player; it only controls
     ioClient.on('state:init', (snap) => {
-      st.textContent = snap.isOpen ? 'ABIERTO' : 'CERRADO';
+      st.textContent = snap.isOpen ? 'OPEN' : 'CLOSED';
       winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
       renderPlayers(snap.players);
     });
+
     ioClient.on('state:update', (snap) => {
-      st.textContent = snap.isOpen ? 'ABIERTO' : 'CERRADO';
+      st.textContent = snap.isOpen ? 'OPEN' : 'CLOSED';
       winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
       renderPlayers(snap.players);
     });
@@ -107,6 +108,7 @@
       const pts = Number(pointsInput.value || 10);
       ioClient.emit('host:award', pts);
     };
+
     penalizeBtn.onclick = () => {
       const pts = Number(pointsInput.value || 5);
       ioClient.emit('host:penalize', pts);

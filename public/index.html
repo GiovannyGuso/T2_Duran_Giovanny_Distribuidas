@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Jugador | Trivia Buzzer</title>
+  <title>Player | Trivia Buzzer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root { font-family: Arial, sans-serif; }
@@ -21,26 +21,26 @@
 </head>
 <body>
   <div class="card">
-    <h1>Jugador</h1>
+    <h1>Player</h1>
 
     <div>
-      <label>Tu nickname:</label>
-      <input id="nick" placeholder="p.ej. Bryan" />
-      <button id="joinBtn">Unirme</button>
+      <label>Your nickname:</label>
+      <input id="nick" placeholder="e.g. Bryan" />
+      <button id="joinBtn">Join</button>
     </div>
 
     <div style="margin-top:16px">
       <button id="buzzer" class="closed" disabled>BUZZER</button>
-      <div id="status" class="muted">Conéctate con un nickname</div>
+      <div id="status" class="muted">Connect using a nickname</div>
     </div>
 
     <div style="margin-top:16px">
-      <h3>Marcador</h3>
+      <h3>Scoreboard</h3>
       <ul id="scoreboard"></ul>
     </div>
 
     <div style="margin-top:16px">
-      <strong>Ganador actual:</strong>
+      <strong>Current Winner:</strong>
       <span id="winner" class="winner">—</span>
     </div>
   </div>
@@ -71,52 +71,51 @@
       if (!joined) return;
       buzzerBtn.disabled = !open;
       buzzerBtn.className = open ? 'open' : 'closed';
-      statusEl.textContent = open ? '¡Buzzer abierto! Pulsa ahora.' : 'Buzzer cerrado.';
+      statusEl.textContent = open ? 'Buzzer is open! Press now!' : 'Buzzer is closed.';
     }
 
     joinBtn.onclick = () => {
       const nick = nickInput.value.trim();
-      if (!nick) return alert('Ingresa un nickname');
+      if (!nick) return alert('Please enter a nickname');
       socket.emit('player:join', nick);
       joined = true;
-      statusEl.textContent = 'Conectado. Espera a que el host abra la ronda.';
+      statusEl.textContent = 'Connected. Wait for the host to open the round.';
     };
 
     buzzerBtn.onclick = () => {
       socket.emit('buzzer:press');
     };
 
-    // Estado inicial
+    // Initial state
     socket.on('state:init', (snap) => {
       renderScoreboard(snap.players);
       setBuzzerOpen(snap.isOpen);
       winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
     });
 
-    // Actualizaciones de estado
+    // State updates
     socket.on('state:update', (snap) => {
       renderScoreboard(snap.players);
       setBuzzerOpen(snap.isOpen);
       winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
     });
 
-    // Eventos de buzzer
+    // Buzzer events
     socket.on('buzzer:open', () => setBuzzerOpen(true));
     socket.on('buzzer:close', () => setBuzzerOpen(false));
     socket.on('buzzer:winner', (w) => {
       setBuzzerOpen(false);
       winnerEl.textContent = w.nick;
-      statusEl.textContent = `Ganó ${w.nick}`;
+      statusEl.textContent = `${w.nick} pressed first!`;
     });
 
-    // Cambios de puntaje
-    socket.on('score:changed', ({id, score}) => {/* scoreboard se actualiza vía state:update */});
-    socket.on('score:reset', () => {/* idem */});
+    // Score changes
+    socket.on('score:changed', ({id, score}) => {/* scoreboard updated via state:update */});
+    socket.on('score:reset', () => {/* same */});
 
-    // Expulsión
+    // Kick event
     socket.on('player:kicked', (id) => {
-      // Si me expulsaron, desactivar UI
-      // (difícil saberlo sin comparar id; aquí mantenemos simple)
+      // If kicked, disable UI (optional implementation)
     });
   </script>
 </body>
