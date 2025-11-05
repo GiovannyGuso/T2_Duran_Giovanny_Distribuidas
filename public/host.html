@@ -1,0 +1,118 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Host | Trivia Buzzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { font-family: Arial, sans-serif; }
+    body { margin: 24px; background:#0f172a; color:#e5e7eb; }
+    .wrap { max-width:900px; margin:auto; display:grid; gap:20px; grid-template-columns: 1fr 1fr; }
+    .card { background:#111827; border-radius:12px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.25); }
+    h2 { margin-top:0; }
+    button, input { padding:10px 12px; border-radius:10px; border:0; }
+    button { cursor:pointer; color:#111827; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .green { background:#22c55e; }
+    .gray { background:#9ca3af; }
+    .blue { background:#60a5fa; }
+    .red { background:#f87171; }
+    .yellow { background:#facc15; }
+    .list { list-style:none; padding:0; margin:0; }
+    .list li { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #1f2937; }
+    .muted { color:#94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h2>Control de Ronda</h2>
+      <div class="row">
+        <button id="open" class="green">Abrir buzzer</button>
+        <button id="close" class="gray">Cerrar buzzer</button>
+      </div>
+      <p class="muted">Estado: <span id="st">—</span></p>
+      <p><strong>Ganador:</strong> <span id="winner">—</span></p>
+
+      <div class="row">
+        <input id="points" type="number" value="10" />
+        <button id="award" class="blue">+ Puntaje al ganador</button>
+        <button id="penalize" class="yellow">- Penalizar ganador</button>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <button id="resetScores" class="red">Reset marcador</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Jugadores</h2>
+      <ul id="players" class="list"></ul>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const ioClient = io();
+
+    const st = document.getElementById('st');
+    const winnerEl = document.getElementById('winner');
+    const playersEl = document.getElementById('players');
+
+    const openBtn = document.getElementById('open');
+    const closeBtn = document.getElementById('close');
+    const awardBtn = document.getElementById('award');
+    const penalizeBtn = document.getElementById('penalize');
+    const pointsInput = document.getElementById('points');
+    const resetScoresBtn = document.getElementById('resetScores');
+
+    function renderPlayers(players) {
+      playersEl.innerHTML = '';
+      players.sort((a,b)=> b.score - a.score).forEach(p => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div><strong>${p.nick}</strong> <span class="muted">(${p.id.slice(0,6)})</span></div>
+          <div>
+            <span style="margin-right:10px">Score: ${p.score}</span>
+            <button data-id="${p.id}" class="kick red">Expulsar</button>
+          </div>
+        `;
+        playersEl.appendChild(li);
+      });
+
+      // Bind expulsar
+      document.querySelectorAll('.kick').forEach(btn => {
+        btn.onclick = () => {
+          ioClient.emit('host:kick', btn.dataset.id);
+        };
+      });
+    }
+
+    // Host no necesita “join” como jugador; sólo controla
+    ioClient.on('state:init', (snap) => {
+      st.textContent = snap.isOpen ? 'ABIERTO' : 'CERRADO';
+      winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
+      renderPlayers(snap.players);
+    });
+    ioClient.on('state:update', (snap) => {
+      st.textContent = snap.isOpen ? 'ABIERTO' : 'CERRADO';
+      winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
+      renderPlayers(snap.players);
+    });
+
+    openBtn.onclick = () => ioClient.emit('host:open');
+    closeBtn.onclick = () => ioClient.emit('host:close');
+
+    awardBtn.onclick = () => {
+      const pts = Number(pointsInput.value || 10);
+      ioClient.emit('host:award', pts);
+    };
+    penalizeBtn.onclick = () => {
+      const pts = Number(pointsInput.value || 5);
+      ioClient.emit('host:penalize', pts);
+    };
+
+    resetScoresBtn.onclick = () => ioClient.emit('host:resetScores');
+  </script>
+</body>
+</html>

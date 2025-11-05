@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Jugador | Trivia Buzzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { font-family: Arial, sans-serif; }
+    body { margin: 24px; background:#f6f7fb; }
+    .card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 6px 20px rgba(0,0,0,.08); max-width:560px; margin:auto; }
+    h1 { margin-top:0; }
+    input, button { padding:12px 14px; border-radius:10px; border:1px solid #ddd; }
+    button { cursor:pointer; border:0; box-shadow:0 4px 10px rgba(0,0,0,.08); }
+    #buzzer { width:100%; font-size:28px; padding:20px; margin-top:16px; border-radius:20px; }
+    #buzzer.open { background:#16a34a; color:white; }
+    #buzzer.closed { background:#9ca3af; color:white; }
+    #status { margin-top:10px; font-weight:bold; }
+    .winner { color:#2563eb; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Jugador</h1>
+
+    <div>
+      <label>Tu nickname:</label>
+      <input id="nick" placeholder="p.ej. Bryan" />
+      <button id="joinBtn">Unirme</button>
+    </div>
+
+    <div style="margin-top:16px">
+      <button id="buzzer" class="closed" disabled>BUZZER</button>
+      <div id="status" class="muted">Conéctate con un nickname</div>
+    </div>
+
+    <div style="margin-top:16px">
+      <h3>Marcador</h3>
+      <ul id="scoreboard"></ul>
+    </div>
+
+    <div style="margin-top:16px">
+      <strong>Ganador actual:</strong>
+      <span id="winner" class="winner">—</span>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const joinBtn = document.getElementById('joinBtn');
+    const nickInput = document.getElementById('nick');
+    const buzzerBtn = document.getElementById('buzzer');
+    const statusEl = document.getElementById('status');
+    const scoreboardEl = document.getElementById('scoreboard');
+    const winnerEl = document.getElementById('winner');
+
+    let joined = false;
+
+    function renderScoreboard(players) {
+      scoreboardEl.innerHTML = '';
+      players.sort((a,b)=> b.score - a.score).forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = `${p.nick}: ${p.score}`;
+        scoreboardEl.appendChild(li);
+      });
+    }
+
+    function setBuzzerOpen(open) {
+      if (!joined) return;
+      buzzerBtn.disabled = !open;
+      buzzerBtn.className = open ? 'open' : 'closed';
+      statusEl.textContent = open ? '¡Buzzer abierto! Pulsa ahora.' : 'Buzzer cerrado.';
+    }
+
+    joinBtn.onclick = () => {
+      const nick = nickInput.value.trim();
+      if (!nick) return alert('Ingresa un nickname');
+      socket.emit('player:join', nick);
+      joined = true;
+      statusEl.textContent = 'Conectado. Espera a que el host abra la ronda.';
+    };
+
+    buzzerBtn.onclick = () => {
+      socket.emit('buzzer:press');
+    };
+
+    // Estado inicial
+    socket.on('state:init', (snap) => {
+      renderScoreboard(snap.players);
+      setBuzzerOpen(snap.isOpen);
+      winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
+    });
+
+    // Actualizaciones de estado
+    socket.on('state:update', (snap) => {
+      renderScoreboard(snap.players);
+      setBuzzerOpen(snap.isOpen);
+      winnerEl.textContent = snap.winner ? snap.winner.nick : '—';
+    });
+
+    // Eventos de buzzer
+    socket.on('buzzer:open', () => setBuzzerOpen(true));
+    socket.on('buzzer:close', () => setBuzzerOpen(false));
+    socket.on('buzzer:winner', (w) => {
+      setBuzzerOpen(false);
+      winnerEl.textContent = w.nick;
+      statusEl.textContent = `Ganó ${w.nick}`;
+    });
+
+    // Cambios de puntaje
+    socket.on('score:changed', ({id, score}) => {/* scoreboard se actualiza vía state:update */});
+    socket.on('score:reset', () => {/* idem */});
+
+    // Expulsión
+    socket.on('player:kicked', (id) => {
+      // Si me expulsaron, desactivar UI
+      // (difícil saberlo sin comparar id; aquí mantenemos simple)
+    });
+  </script>
+</body>
+</html>
